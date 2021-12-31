@@ -23,22 +23,14 @@ import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.ir.remapTypeParameters
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureSerializer
 import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.declarations.IrConstructor
-import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
-import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
-import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrConstructorCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrDelegatingConstructorCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImpl
+import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.util.DeepCopySymbolRemapper
 import org.jetbrains.kotlin.ir.util.copyTypeAndValueArgumentsFrom
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
+import org.jetbrains.kotlin.platform.konan.isNative
 import org.jetbrains.kotlin.resolve.BindingTrace
 
 /**
@@ -62,6 +54,40 @@ class SubstituteDecoyCallsTransformer(
         module.transformChildrenVoid()
 
         module.patchDeclarationParents()
+    }
+
+    /**
+     * ModifiedBy(wangrong.roy): To fix field's get value reference after creating
+     *  newly primary constructor in decoy pattern for K/N.
+     */
+    override fun visitGetValue(expression: IrGetValue): IrExpression {
+        if (!context.platform.isNative()) {
+            return super.visitGetValue(expression)
+        }
+
+        val value = expression.symbol.owner
+        if (value !is IrValueParameter) {
+            return super.visitGetValue(expression)
+        }
+
+        val constructor = value.parent
+        if (constructor !is IrConstructor || !constructor.isDecoy()) {
+            return super.visitGetValue(expression)
+        }
+
+        val actualConstructor = constructor.getComposableForDecoy().owner as IrConstructor
+        val actualValueParameter =
+            actualConstructor.valueParameters[(value as IrValueParameter).index]
+
+        val updateGet = IrGetValueImpl(
+            startOffset = actualValueParameter.startOffset,
+            endOffset = actualValueParameter.endOffset,
+            type = expression.type,
+            symbol = actualValueParameter.symbol,
+            origin = expression.origin
+        )
+
+        return super.visitGetValue(updateGet)
     }
 
     override fun visitSimpleFunction(declaration: IrSimpleFunction): IrStatement {

@@ -3331,10 +3331,19 @@ private fun MutableList<Invalidation>.removeRange(start: Int, end: Int) {
 private fun Boolean.asInt() = if (this) 1 else 0
 private fun Int.asBool() = this != 0
 
-expect internal fun invokeComposable(composer: Composer, composable: @Composable () -> Unit)
-expect internal fun <T> invokeComposableForResult(
+// ModifiedBy(wangrong.roy)
+internal fun invokeComposable(composer: Composer, composable: @Composable () -> Unit){
+    @Suppress("UNCHECKED_CAST")
+    val realFn = composable as Function2<Composer, Int, Unit>
+    realFn(composer, 1)
+}
+internal fun <T> invokeComposableForResult(
     composer: Composer, composable: @Composable () -> T
-): T
+): T {
+    @Suppress("UNCHECKED_CAST")
+    val realFn = composable as Function2<Composer, Int, T>
+    return realFn(composer, 1)
+}
 
 private fun SlotReader.distanceFrom(index: Int, root: Int): Int {
     var count = 0

@@ -70,6 +70,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.platform.js.isJs
 import org.jetbrains.kotlin.platform.jvm.isJvm
+import org.jetbrains.kotlin.platform.konan.isNative
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.Variance
 
@@ -414,7 +415,9 @@ class ComposerTypeRemapper(
         if (!type.isComposable()) return underlyingRemapType(type)
         // do not convert types for decoys
         // TODO: native can't find .parent here, workarounding by don't even tring.
-        if (context.platform.isJs() && scopeStack.peek()?.isDecoy() == true) {
+        // ModifiedBy(wangrong.roy): Support decoy on native target
+        if ((context.platform.isJs() || context.platform.isNative())
+            && scopeStack.peek()?.isDecoy() == true) {
             return underlyingRemapType(type)
         }
 

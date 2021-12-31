@@ -26,8 +26,10 @@ import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationContainer
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -42,13 +44,7 @@ import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeArgument
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
-import org.jetbrains.kotlin.ir.util.DeepCopyIrTreeWithSymbols
-import org.jetbrains.kotlin.ir.util.DeepCopyTypeRemapper
-import org.jetbrains.kotlin.ir.util.IdSignature
-import org.jetbrains.kotlin.ir.util.TypeRemapper
-import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
-import org.jetbrains.kotlin.ir.util.getAnnotation
-import org.jetbrains.kotlin.ir.util.module
+import org.jetbrains.kotlin.ir.util.*
 
 internal interface DecoyTransformBase {
     val context: IrPluginContext
@@ -99,7 +95,7 @@ internal interface DecoyTransformBase {
             ?.filterIsInstance<IrFunction>()
             ?.firstOrNull {
                 it.getDecoyImplementationName() == implementationName &&
-                    it.getDecoyImplementationId() == signatureId
+                        it.getDecoyImplementationId() == signatureId
             }
 
         if (implementation != null) {
@@ -154,6 +150,7 @@ internal interface DecoyTransformBase {
 
     private fun IrFunction.getDecoyTargetName(): String {
         val annotation = getAnnotation(DecoyFqNames.Decoy)!!
+
         @Suppress("UNCHECKED_CAST")
         val decoyTargetName = annotation.getValueArgument(0) as IrConst<String>
 
@@ -175,6 +172,11 @@ internal interface DecoyTransformBase {
         idSignature: IdSignature
     ): IrSymbol = resolveBySignatureInModule(idSignature, FUNCTION_SYMBOL, moduleDescriptor.name)
 }
+
+@OptIn(ObsoleteDescriptorBasedAPI::class)
+fun IrDeclaration.isExternalDecoyImplStub(): Boolean =
+    origin == IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB && isDecoyImplementation()
+
 
 @OptIn(ObsoleteDescriptorBasedAPI::class)
 fun IrDeclaration.isDecoy(): Boolean =

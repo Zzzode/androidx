@@ -17,6 +17,14 @@
 package androidx.compose.runtime
 
 /**
+ * fixme(wangrong.roy):test code
+ */
+@Composable
+internal fun composeTest(){
+    currentCompositeKeyHash.toString()
+}
+
+/**
  * Remember the value produced by [calculation]. [calculation] will only be evaluated during the composition.
  * Recomposition will always return the value produced by composition.
  */
